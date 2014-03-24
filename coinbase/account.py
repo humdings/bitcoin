@@ -23,11 +23,15 @@ THE SOFTWARE.
 
 import hashlib
 import hmac
+
 import calendar
 import time
-import pandas as pd
+
 import json
 import requests
+
+import pandas as pd
+
 from . utils import HistoricalPrices, exchange_rates, format_quote
 
       
