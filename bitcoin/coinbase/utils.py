@@ -1,33 +1,33 @@
 import pandas as pd
 import pytz
 
-class HistoricalPrices(pd.Series):
+
+class HistoricalPrices(pd.DataFrame):
     '''
     BTC prices are approx 10 min bar with 1000 prices per page.
     page range is inclusive so (pg1=1, pgn=1) will return pg 1 only.
     
     returns:
-        Pandas Series of prices
+        Pandas DataFrame of prices
     '''
-    def __init__(self, start_page=1, end_page=1):
+    def __init__(self, start_page=1, end_page=3):
         btc_history = 'https://coinbase.com/api/v1/prices/historical?page={}'
-        bitcoin_prices = []
+        bitcoin_prices = pd.DataFrame()
         for pg in range(start_page, end_page+1):
             try:
-                bitcoin_prices.append(pd.read_csv(
+                page = pd.read_csv(
                     btc_history.format(str(pg)), 
-                    header=None,names = ['datetime', 'price'],
-                    parse_dates= ['datetime'],index_col='datetime')
+                    header=None,
+                    names = ['datetime', 'price'],
+                    parse_dates= ['datetime'],
+                    index_col='datetime'
                 )
+                page.index = page.index.tz_localize(pytz.utc)
+                bitcoin_prices = bitcoin_prices.append(page)
             except:
                 break
-        prices = {}
-        for dataframe in bitcoin_prices:
-            series_dict = dataframe['price'].to_dict()
-            for dt in series_dict:
-                dt.tz_localize('US/Eastern')
-                prices[dt] = series_dict[dt]
-        super(HistoricalPrices, self).__init__(prices)
+        bitcoin_prices = bitcoin_prices.sort_index(ascending=True)
+        super(HistoricalPrices, self).__init__(bitcoin_prices)
 
 
 def exchange_rates():
@@ -65,7 +65,7 @@ def load_local_prices(path):
         pandas DataFrame with DatetimeIndex
     '''
 
-    data = pd.read_csv(path, index_col='Date')
+    data = pd.read_csv(path, index_col=0)
     data.columns = ['BTC']
     data.index = pd.Index([pd.to_datetime(i, utc=pytz.UTC) for i in data.index])
     return data

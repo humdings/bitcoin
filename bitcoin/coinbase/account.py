@@ -24,9 +24,6 @@ THE SOFTWARE.
 import hashlib
 import hmac
 
-import calendar
-import time
-
 import json
 import requests
 
@@ -34,23 +31,29 @@ import pandas as pd
 
 from . utils import HistoricalPrices, exchange_rates, format_quote
 
-      
         
 class Account:
     '''
     An account with CoinBase, only compatible 
     with api key/secret key protocol for now. 
+    
+    params:
+        auth_file: a csv file that must have the following format.
+        
+        0,api_key,secret_key,nonce
+        0,YOUR API KEY,YOUR SECRET KEY,integer
+        
+        the zeros are for indexing via pandas
     '''
     
     base_url = 'https://coinbase.com/api/v1/'
     
-    def __init__(self, api_key=None, secret_key=None):
-        self.api_key = api_key
-        self.secret_key = secret_key
+    def __init__(self, auth_file=None):
+        self.auth = auth_file
         self.session = requests.session()
         self.session.headers.update({'content-type': 'application/json'})
         self._request_params = {
-            'ACCESS_KEY': self.api_key,
+            'ACCESS_KEY': None,
             'ACCESS_SIGNATURE': None,
             'ACCESS_NONCE':None
         }
@@ -60,20 +63,22 @@ class Account:
         Access signature for the api_key/secret_key authorization with Coinbase
         '''
         params = self._request_params.copy()
-        nonce = self.nonce()
+        certs = pd.read_csv(self.auth, index_col=0)
+        api_key = certs.api_key[0]
+        secret_key = certs.secret_key[0]
+        nonce = str(certs.nonce[0])
         msg = nonce + url + ('' if body is None else body)
         signature = hmac.new(
-            self.secret_key,
+            secret_key,
             msg=msg,
             digestmod=hashlib.sha256
         ).hexdigest()
+        params['ACCESS_KEY'] = api_key
         params['ACCESS_NONCE'] = nonce
         params['ACCESS_SIGNATURE'] = signature
+        certs.nonce[0] = certs.nonce[0] + 1
+        certs.to_csv(self.auth, index_label=0)
         return params
-        
-    def nonce(self):
-        ''' Access Nonce '''
-        return str(calendar.timegm(time.gmtime()))
     
     def buy_price(self, qty=1):
         ''' Get the total buy price for some bitcoin amount '''

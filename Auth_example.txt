@@ -1,0 +1,2 @@
+0,api_key,secret_key,nonce
+0,YOUR_API_KEY,YOUR_SECRET_KEY,1
